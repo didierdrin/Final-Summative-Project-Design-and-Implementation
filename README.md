@@ -1,88 +1,63 @@
-# Final Summative: Blockchain-Based Library Book Lending Tracker
+# Blockchain-Based Library Book Lending Tracker
 
-This project extends the earlier blockchain-based library system so that book returns generate token rewards, those rewards are confirmed through mining before they are credited, and both a UTXO model and an account-based model are supported for member balances.
-
----
-
-## 1. Project Goal
-
-The library system tracks lending activity as blockchain records. In this extension:
-
-- a book return triggers a token reward transaction;
-- the reward is not immediately accepted into the chain;
-- the transaction is placed in a pending pool;
-- a mining process confirms the block before the member balance is updated;
-- the project demonstrates both UTXO and account-balance transaction logic.
-
-This summative shows how blockchain transactions, pending validation, and mining work together in a real ledger-based system.
+A command-line library lending ledger written in C. Borrows, returns, copy inventory, reservations, fines, and fraud review are recorded as signed, proof-of-work blocks. Returns earn token rewards that only reach member balances after mining confirms them. The project is for the ALU Software Engineering: Low-Level Specialization, Final Summative.
 
 ---
 
-## 2. Updated Functional Requirements
+## 1. Features
 
-### Lending events and reward rules
+### Implemented
+- Book, member, and copy registries loaded from `books.txt`, `members.txt`, and `copies.txt`
+- Borrow and return by copy, with state tracking (AVAILABLE, BORROWED, RESERVED, LOST)
+- Reservation queue per title, with the copy offered to the next member on return
+- Renewal of a loan, blocked when another member has a reservation
+- Overdue scanning, with a fine per day overdue, and fine settlement
+- Token rewards: 10 coins for an on-time return, 5 for a late return
+- Reward transactions held in a pending pool until mined
+- Proof-of-work mining (solo) with configurable difficulty (1 to 4) and a hash attempt count
+- ECDSA P-256 signatures on every record, verified during validation
+- SHA-256 block hashing and hash-pointer linkage between blocks
+- Merkle root stored in each block header and checked during validation
+- Chain validation covering linkage, timestamps, signatures, Merkle roots, hashes, and proof-of-work
+- Tamper-detection demonstration on an in-memory copy of the chain
+- Balances rebuilt from the saved chain on startup
+- Two balance models, UTXO and account-based, selectable in the menu
+- Fraud review queue for suspicious requests, with approve and reject actions
+- Binary persistence of the chain to `chain.dat`
 
-- Return on time: +10 coins to the member
-- Late return: +5 coins to the member
-- No return / still overdue: no token reward
-- A lending record remains pending until mined
-- Only confirmed blocks update the member balance
-
-### Updated block fields
-
-Each block should include:
-
-- token reward value
-- transaction ID (SHA-256 hash of the reward transaction)
-- all original fields from the first & second formatives
-
-### Transaction models
-
-The project must support two methods for managing token balances:
-
-1. UTXO model
-   - transactions contain inputs and outputs;
-   - member balances are derived from unspent outputs;
-   - double spending is prevented;
-   - transaction fees and change outputs are handled.
-
-2. Account-based model
-   - each member has a token balance and a nonce;
-   - outgoing transactions debit the sender and credit the recipient;
-   - invalid or reused nonces are rejected;
-   - transaction history is stored in a linked list.
-
-### Mining simulation
-
-The project must simulate three mining methods:
-
-- Solo mining
-- Pool mining
-- Cloud mining
-
-All mining operates on the same pending pool of lending blocks.
+### Not yet implemented
+- Pool mining (shared rewards, 2% pool fee, reward-share table)
+- Cloud mining (rental rounds, per-round fee, earnings summary, warning when fees exceed rewards)
+- UTXO transfers with inputs, outputs, a fixed fee, change outputs, and double-spend checks
+- Account-to-account transfers with insufficient-balance rejection and outgoing nonce checks
+- Per-member ECDSA key pairs (the current build uses one node key)
+- Nonce-based replay protection on requests
+- Automatic fraud heuristics (concurrent borrow limit, 24-hour re-borrow, duplicate request ID, condition downgrade)
 
 ---
 
-## 3. Dependencies
-
-The project requires:
+## 2. Dependencies
 
 - GCC or Clang with C11 support
-- OpenSSL development libraries for SHA-256 and cryptographic support
-- Standard POSIX / Linux environment
+- OpenSSL development libraries (`libssl`, `libcrypto`)
+- A POSIX shell, or MinGW on Windows
 
-Install dependencies:
+Install on Ubuntu or Debian:
 
 ```bash
-# Ubuntu / Debian
 sudo apt update
 sudo apt install build-essential libssl-dev
+```
 
-# Fedora / RHEL
+Install on Fedora or RHEL:
+
+```bash
 sudo dnf install gcc openssl-devel
+```
 
-# macOS with Homebrew
+Install on macOS with Homebrew:
+
+```bash
 brew install openssl
 export CFLAGS="-I$(brew --prefix openssl)/include"
 export LDFLAGS="-L$(brew --prefix openssl)/lib"
@@ -90,118 +65,113 @@ export LDFLAGS="-L$(brew --prefix openssl)/lib"
 
 ---
 
-## 4. Build and Run
+## 3. Build
 
-Compile the project:
+From the project root:
 
 ```bash
 gcc -std=c11 -Wall -Wextra -Iinclude src/*.c -o library_tracker -lssl -lcrypto
 ```
 
-Run the application:
+On macOS, add `$CFLAGS $LDFLAGS` to the command.
+
+---
+
+## 4. Run
 
 ```bash
 ./library_tracker
 ```
 
-To start from a clean state:
+On Windows (MinGW), run `library_tracker.exe`.
+
+On first run the program:
+- generates an ECDSA key pair in `keys/` if none exists;
+- creates a genesis block in `chain.dat` if no chain file exists;
+- validates the saved chain before showing the menu.
+
+To start from a clean state, delete the chain file and the keys:
 
 ```bash
 rm -f chain.dat
+rm -rf keys
 ./library_tracker
 ```
 
-## Current Build Notes
-
-The current codebase keeps the original blockchain ledger, registry loading, and ECDSA signing flow, and it now behaves more consistently for the demo:
-
-- the saved chain is validated before the menu opens;
-- return rewards stay in the pending pool until mining confirms them;
-- mined rewards are written back to the blockchain and saved to `chain.dat` immediately;
-- the account-based balance view updates after confirmation;
-- chain tamper checks continue to use the stored hashes and signatures;
-- the `validate_chain` flow now fails fast if a loaded chain is corrupted.
-
-The current menu also includes copy inventory viewing, add-copy and mark-lost actions, reservation handling, renewal, overdue scanning, fine viewing and settlement, and a basic fraud-review workflow.
-
-The project is intentionally simple: it focuses on the core blockchain lending workflow that can be demonstrated clearly in the video, without networking or a full wallet system.
+Note: the chain file format changed (magic `LBCT2`). Delete any `chain.dat` created by an earlier build before running.
 
 ---
 
-## 5. Switching Between Transaction Models
+## 5. Data Files
 
-The current executable switches models from the in-app menu.
+All data files are read from the project root.
 
-### Model identifiers in code
+| File | Format | Example |
+|---|---|---|
+| `books.txt` | `book_id,title,author` | `B001,Introduction to Algorithms,Cormen` |
+| `members.txt` | `member_id,full_name,course_code` | `M001,Jane Doe,SE101` |
+| `copies.txt` | Check the format used in your file | One line per physical copy |
 
-```c
-#define TX_MODEL_UTXO 1
-// or
-#define TX_MODEL_ACCOUNT 1
-```
-
-### Menu selection in the program
-
-The menu should include:
-
-- 1. Use UTXO model
-- 2. Use account-based model
-- 3. Start mining simulation
-
-The chosen model applies to all token transactions during the session.
+Lines starting with `#` and blank lines are ignored. The program exits with an error if a registry file is missing or empty.
 
 ---
 
-## 6. Setting Mining Difficulty
+## 6. Switching Between Transaction Models
 
-Mining difficulty is configured from the in-app menu. The default is usually 2 leading zeroes.
+Choose the model from the in-app menu:
 
-The difficulty range is expected to be from 1 to 4. A higher value means more hash attempts are required before a valid block hash is found.
+- **UTXO model**: balances are the sum of unspent outputs per member.
+- **Account-based model**: each member has a balance and a nonce.
 
----
-
-## 7. Testing and Demo Workflow
-
-### Typical test flow
-
-1. Load the library registry.
-2. Borrow a book.
-3. Return the book.
-4. Check pending pool status.
-5. Mine the pending blocks.
-6. View updated balances and confirmed records.
-7. Run the UTXO and account-based model tests.
-8. Run solo, pool, and cloud mining simulations.
-
-### Example scenarios to test
-
-- On-time return creates a reward of 10 coins
-- Late return creates a reward of 5 coins
-- Overdue book with no return produces no reward
-- Insufficient member balance is rejected
-- Invalid nonce is rejected in account-based model
-- Cloud mining warns if fees exceed rewards
+The chosen model applies to all token balances for the rest of the session. Both views are shown by the balance command. Note that the UTXO and account transfer commands are not yet implemented, so the switch currently changes how rewards are recorded and displayed.
 
 ---
 
-## 8. Edge-Case Validation Checklist
+## 7. Setting Mining Difficulty
 
-The system should be tested for:
+Set difficulty from the in-app menu, with a value from 1 to 4:
 
-- absent student generates no transaction;
-- insufficient balance stops a transfer;
-- incorrect nonce fails validation;
-- unprofitable cloud rental displays a warning;
-- pending blocks remain unconfirmed until mined;
-- reward generation only occurs after a valid return;
-- mining difficulty can be increased and decreased without breaking the logic.
+- difficulty 1: hash must start with `0`
+- difficulty 2: hash must start with `00` (default)
+- difficulty 4: hash must start with `0000`
+
+Higher values need more hash attempts. Each mined block prints its attempt count.
 
 ---
 
-## 9. Project Files
+## 8. Testing Mining
+
+1. Start the program and borrow a book (choose the borrow option and enter a book ID and member ID).
+2. Return the book, answering "y" for on time or "n" for late. The reward is added to the pending pool.
+3. View the pending pool.
+4. Set difficulty to 2 (or any value from 1 to 4).
+5. Run mining on the pending pool. The output shows each block's attempt count and the updated balances.
+6. Validate the chain. It should report valid.
+7. Restart the program. Balances should be unchanged.
+
+Solo mining is the only mining method implemented. Pool and cloud mining are listed under Not yet implemented.
+
+---
+
+## 9. Test Scenarios
+
+| Scenario | Steps | Expected result |
+|---|---|---|
+| On-time return | Borrow, return with "y", mine | Member receives 10 tokens after mining |
+| Late return | Borrow, return with "n", mine | Member receives 5 tokens after mining |
+| Reward not yet mined | Return, check balance before mining | Balance unchanged |
+| Invalid book or member | Borrow with an unknown ID | Error, no record created |
+| Copy already on loan | Borrow a copy twice | Second borrow rejected or routed to reservation |
+| Reservation offer | Reserve a title with no copies free, return one copy | Copy offered to the reserving member |
+| Tamper detection | Run the tamper demo, then validate | Tampered copy reported invalid; live chain unchanged |
+| Restart persistence | Mine, exit, restart | Chain and balances restored |
+
+---
+
+## 10. Project Structure
 
 ```text
-Final Summative/
+.
 ├── README.md
 ├── report.md
 ├── voiceover_script.md
@@ -214,39 +184,21 @@ Final Summative/
 │   ├── crypto_utils.c
 │   ├── main.c
 │   └── registry.c
-├── copies.txt
-├── members.txt
 ├── books.txt
-└── chain.dat
+├── members.txt
+├── copies.txt
+├── keys/            (generated on first run)
+└── chain.dat        (generated on first run)
 ```
 
-The demo narration script is in `voiceover_script.md`.
-
 ---
 
-## 10. Additional Notes
+## 11. Limitations
 
-This summative extends the earlier library blockchain tracker by adding the missing blockchain economics and confirmation layer. It demonstrates how token rewards can be tied to library events, how mining acts as a trust and confirmation step, and how different transaction models affect ledger management.
+The following are known gaps. The technical report describes each one in more detail.
 
-The final submission should include:
-
-- updated source code;
-- a technical report in PDF/Word format;
-- a complete README file;
-- a demo video showing the full workflow.
-
----
-
-## 11. Submission Checklist
-
-Before submission, confirm:
-
-- [ ] rewards are created on return events;
-- [ ] pending blocks are mined before confirmation;
-- [ ] UTXO model works correctly;
-- [ ] account-based model works correctly;
-- [ ] mining difficulty is configurable;
-- [ ] solo, pool, and cloud mining are implemented;
-- [ ] README is accurate and complete;
-- [ ] technical report includes screenshots and test results;
-- [ ] demo video is recorded and narrated clearly.
+- Pool and cloud mining are not implemented.
+- The UTXO model does not yet handle transfers, fees, change, or double spends.
+- Account transfers and nonce checks are not yet enforced.
+- Keys are per node, not per member.
+- Fraud heuristics are not triggered automatically; flagged requests come from the review queue only.
