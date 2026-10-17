@@ -36,14 +36,16 @@ typedef struct {
     char course_code[10];
 } Member;
 
+/* ---- Copy inventory --------------------------------------- */
 typedef struct {
     char copy_id[24];
     char book_id[20];
-    char condition[8];
-    char state[12];
+    char condition[8];           /* NEW, GOOD, WORN, LOST                    */
+    char state[12];              /* AVAILABLE, BORROWED, RESERVED, LOST      */
     char current_holder_id[20];
-    char due_date[11];
+    char due_date[11];           /* YYYY-MM-DD or empty                      */
     int  renew_count;
+    int  fined_days;             /* overdue days already charged as fines    */
 } Copy;
 
 int  registry_load_books(const char *path);
